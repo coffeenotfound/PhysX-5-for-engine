@@ -34,6 +34,13 @@
 #include "foundation/PxAllocator.h"
 #include "common/PxBase.h"
 
+// Hey at least this fucking works, because fuck you c++
+extern "C" {
+	void dumb_engine_callback_on_ref_decr(
+		physx::PxRefCounted *obj
+	);
+}
+
 namespace physx
 {
 namespace Cm
@@ -64,7 +71,15 @@ namespace Cm
 		{
 			PX_ASSERT(mBuiltInRefCount>0);
 			volatile PxI32* val = reinterpret_cast<volatile PxI32*>(&mBuiltInRefCount);
-			if(physx::PxAtomicDecrement(val) == 0)
+			
+			PxI32 new_refcount = physx::PxAtomicDecrement(val);
+			
+			// JAN: Call custom ref count decr BEFORE deletion
+			dumb_engine_callback_on_ref_decr(
+				static_cast<PxRefCounted*>(this)
+			);
+			
+			if (new_refcount == 0)
 				onRefCountZero();
 		}
 
